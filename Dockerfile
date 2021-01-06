@@ -3,7 +3,7 @@ FROM lolhens/sbt-graal:graal-20.3.0-java11 as builder
 COPY . .
 ARG CI_VERSION=
 RUN sbt assembly
-RUN cp target/scala-*/docker-registry-cacher*.sh.bat docker-registry-cache.sh.bat
+RUN cp target/scala-*/docker-registry-cache*.sh.bat docker-registry-cache.sh.bat
 
 FROM registry:2
 
