@@ -83,11 +83,8 @@ object Server extends TaskApp {
         /*case (registry, namespace :+ labelAndTag) if nameAndTag.contains(":") =>
           val (name, s":$tag") = nameAndTag.splitAt(nameAndTag.lastIndexOf(":"))
           (registry, namespace, name, tag)*/
-        case (registry, namespace :+ label) =>
-          (registry, namespace, label /*, "latest"*/ )
-
-        case (_, _) =>
-          throw new RuntimeException("image label cannot be empty")
+        case (registry, namespace :+ label) => (registry, namespace, label /*, "latest"*/ )
+        case (_, _) => throw new RuntimeException("image label cannot be empty")
       }.pipe {
         case (registry, namespace@_ +: _, name) => Image(registry, namespace.mkString("/"), name)
         case (registry, _, name) => Image(registry, "library", name)
