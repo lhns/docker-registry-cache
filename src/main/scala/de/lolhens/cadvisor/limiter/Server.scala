@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory
 
 import java.net.http.HttpClient
 import java.nio.file.{Files, Path, Paths}
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
@@ -131,6 +132,7 @@ object Server extends TaskApp {
       io.circe.parser.parse(System.getenv("CONFIG")).toTry.get.as[List[RegistryConfig]].toTry.get
 
     logger.info("Registries:\n" + registries.mkString("\n"))
+    logger.info("starting proxies")
 
     for {
       registryProxies <- registries.zipWithIndex.map {
@@ -138,6 +140,20 @@ object Server extends TaskApp {
           registryConfig.registry.startProxy(5001 + index, registryConfig.variablesOrDefault)
             .map((registryConfig.registry, _))
       }.sequence
+      _ <- clientResource.use { client =>
+        Task.parSequenceUnordered(registryProxies.map {
+          case (registry, proxyUri) =>
+            val retryLoop: Task[String] =
+              client.expect[String](proxyUri.withPath("/v2/"))
+                .onErrorHandleWith { throwable =>
+                  Task.sleep(1.second) *>
+                    retryLoop
+                }
+
+            retryLoop.timeoutWith(20.seconds, new RuntimeException(s"error starting proxy for ${registry.host}"))
+        })
+      }
+      _ = logger.info("proxies started")
       result <- Task.deferAction { scheduler =>
         BlazeServerBuilder[Task](scheduler)
           .bindHttp(5000, "0.0.0.0")
@@ -193,10 +209,7 @@ object Server extends TaskApp {
               repositories <- (for {
                 client <- Stream.resource(clientResource)
                 (registry, proxyUri) <- Stream.iterable(registryProxies)
-                response <- Stream.resource {
-                  client.run(Request[Task](method = Method.GET, uri = proxyUri.withPath("/v2/_catalog")))
-                }
-                json <- Stream.eval(response.as[Json])
+                json <- Stream.eval(client.expect[Json](proxyUri.withPath("/v2/_catalog")))
                 json <- Stream.iterable(json.asObject)
                 json <- Stream.iterable(json("repositories"))
                 json <- Stream.iterable(json.asArray)
