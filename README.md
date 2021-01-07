@@ -8,9 +8,9 @@ A multi-registry docker image cache.
 It uses Docker's official [registry](https://docs.docker.com/registry/) internally and spawns one instance for each configured registry while it proxies requests to the corresponding registry.
 
 ## Usage
-Instead of `my/image:latest` you use `172.0.0.1:5000/my/image:latest`.
+Instead of `my/image:latest` you just specify `127.0.0.1:5000/my/image:latest`.
 
-This also works for `172.0.0.1:5000/ghcr.io/my/image:latest` and `172.0.0.1:5000/debian`.
+This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000/debian`.
 
 ## Stack Config
 ### Filesystem Storage Backend
