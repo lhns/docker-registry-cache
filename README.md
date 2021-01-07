@@ -85,7 +85,7 @@ networks:
 ```
 
 ## Environment Variables
-**CONFIG** must contain a JSON list of either a registry host strings or objects with the following structure `{"registry": "ghcr.io", "variables": {"TEST": "foo"}}`
+**CONFIG** must contain a JSON list of either registry host strings or objects with the following structure `{"registry": "ghcr.io", "variables": {"TEST": "foo"}}`
 
 The internally spawned registry processes will also inherit all environment variables so you can configure all internal registries as described in the [official documentation](https://docs.docker.com/registry/configuration/).
 You can also configure the internal registries individually using the `variables` section in the aforementioned JSON structure.
