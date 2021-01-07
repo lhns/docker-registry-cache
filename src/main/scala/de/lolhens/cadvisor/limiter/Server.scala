@@ -143,7 +143,7 @@ object Server extends TaskApp {
       _ <- clientResource.use { client =>
         Task.parSequenceUnordered(registryProxies.map {
           case (registry, proxyUri) =>
-            val retryLoop: Task[String] =
+            lazy val retryLoop: Task[String] =
               client.expect[String](proxyUri.withPath("/v2/"))
                 .onErrorHandleWith { throwable =>
                   Task.sleep(1.second) *>
