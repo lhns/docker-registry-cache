@@ -3,7 +3,9 @@ package de.lolhens.cadvisor.limiter
 import cats.effect.{ExitCode, Resource}
 import cats.instances.list._
 import cats.syntax.traverse._
+import fs2.Stream
 import io.circe.generic.semiauto._
+import io.circe.syntax._
 import io.circe.{Codec, Decoder, Encoder, Json}
 import monix.eval.{Task, TaskApp}
 import org.http4s._
@@ -24,20 +26,40 @@ import scala.util.chaining._
 object Server extends TaskApp {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  val rootDirectory: Path = Paths.get("/var/lib/registry")
+  val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
 
   case class Registry private(uri: Uri) {
     lazy val host: String = uri.host.get.toString()
 
-    def directory: Path = rootDirectory.resolve(host)
-
     def startProxy(port: Int, variables: Map[String, String]): Task[Uri] = Task {
       val addr = s"localhost:$port"
-      Files.createDirectories(directory)
+
       val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
       builder.environment().put("REGISTRY_HTTP_ADDR", addr)
       builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString())
-      builder.environment().put("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", directory.toAbsolutePath.toString)
+
+      def appendDirectoryVar(variable: String, append: String, default: String = ""): String = {
+        val newValue = (Option(System.getenv(variable)).getOrElse(default)
+          .split("/").toSeq.filterNot(_.isEmpty) :+ append).mkString("/")
+
+        builder.environment().put(variable, newValue)
+        newValue
+      }
+
+      Option(System.getenv("REGISTRY_STORAGE")) match {
+        case Some("gcs") => appendDirectoryVar("REGISTRY_STORAGE_GCS_ROOTDIRECTORY", host)
+        case Some("s3") => appendDirectoryVar("REGISTRY_STORAGE_S3_ROOTDIRECTORY", host)
+        case Some("swift") => appendDirectoryVar("REGISTRY_STORAGE_SWIFT_ROOTDIRECTORY", host)
+        case Some("oss") => appendDirectoryVar("REGISTRY_STORAGE_OSS_ROOTDIRECTORY", host)
+        case _ =>
+          val directory = Paths.get(appendDirectoryVar(
+            "REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY",
+            host,
+            defaultRootDirectory.toAbsolutePath.toString
+          ))
+          Files.createDirectories(directory)
+      }
+
       builder.environment().putAll(variables.asJava)
       builder.inheritIO().start()
       Uri.unsafeFromString(s"http://$addr")
@@ -57,7 +79,7 @@ object Server extends TaskApp {
         case string@s"https://$_" => string
         case string => s"https://$string"
       }
-      Registry(Uri.fromString(newString).toTry.get)
+      Registry(Uri.unsafeFromString(newString))
     }
 
     implicit val codec: Codec[Registry] = Codec.from(
@@ -80,11 +102,8 @@ object Server extends TaskApp {
           }
         case parts => (registries.head, parts)
       }.pipe {
-        /*case (registry, namespace :+ labelAndTag) if nameAndTag.contains(":") =>
-          val (name, s":$tag") = nameAndTag.splitAt(nameAndTag.lastIndexOf(":"))
-          (registry, namespace, name, tag)*/
-        case (registry, namespace :+ label) => (registry, namespace, label /*, "latest"*/ )
-        case (_, _) => throw new RuntimeException("image label cannot be empty")
+        case (registry, namespace :+ label) => (registry, namespace, label)
+        case (_, _) => throw new RuntimeException("image label must not be empty")
       }.pipe {
         case (registry, namespace@_ +: _, name) => Image(registry, namespace.mkString("/"), name)
         case (registry, _, name) => Image(registry, "library", name)
@@ -98,7 +117,13 @@ object Server extends TaskApp {
   }
 
   object RegistryConfig {
-    implicit val codec: Codec[RegistryConfig] = deriveCodec
+    implicit val codec: Codec[RegistryConfig] = {
+      val defaultCodec = deriveCodec[RegistryConfig]
+      Codec.from(
+        Decoder[Registry].map(RegistryConfig(_, None)).or(defaultCodec),
+        defaultCodec
+      )
+    }
   }
 
   override def run(args: List[String]): Task[ExitCode] = {
@@ -162,7 +187,28 @@ object Server extends TaskApp {
         request.uri.path match {
           case "/v2/" =>
             Ok(Json.obj())
-          //proxyTo(request, registries.head.uri)
+
+          case "/v2/_catalog" =>
+            for {
+              repositories <- (for {
+                client <- Stream.resource(clientResource)
+                (registry, proxyUri) <- Stream.iterable(registryProxies)
+                response <- Stream.resource {
+                  client.run(Request[Task](method = Method.GET, uri = proxyUri.withPath("/v2/_catalog")))
+                }
+                json <- Stream.eval(response.as[Json])
+                json <- Stream.iterable(json.asObject)
+                json <- Stream.iterable(json("repositories"))
+                json <- Stream.iterable(json.asArray)
+                json <- Stream.iterable(json)
+                repository <- Stream.iterable(json.asString)
+              } yield
+                s"${registry.host}/$repository")
+                .compile.toVector
+              json = Map("repositories" -> repositories).asJson
+              response <- Ok(json)
+            } yield
+              response
 
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
