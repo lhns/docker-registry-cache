@@ -3,6 +3,7 @@ package de.lolhens.docker.cache
 import cats.effect.{ExitCode, Resource}
 import cats.instances.list._
 import cats.syntax.traverse._
+import com.typesafe.scalalogging.Logger
 import fs2.Stream
 import io.circe.generic.semiauto._
 import io.circe.syntax._
@@ -16,7 +17,6 @@ import org.http4s.dsl.task.{Path => _, _}
 import org.http4s.headers.Host
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.slf4j.LoggerFactory
 
 import java.net.http.HttpClient
 import java.nio.file.{Files, Path, Paths}
@@ -25,7 +25,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 object Server extends TaskApp {
-  private val logger = LoggerFactory.getLogger(getClass)
+  private val logger = Logger[Server.type]
 
   val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
 
@@ -131,7 +131,7 @@ object Server extends TaskApp {
     val registries: List[RegistryConfig] =
       io.circe.parser.parse(System.getenv("CONFIG")).toTry.get.as[List[RegistryConfig]].toTry.get
 
-    logger.info("Registries:\n" + registries.mkString("\n"))
+    logger.info("Registries:\n" + registries.map(_ + "\n").mkString)
     logger.info("starting proxies")
 
     for {
@@ -225,18 +225,18 @@ object Server extends TaskApp {
 
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
-            logger.info("manifest " + image + " " + tag)
+            logger.debug(s"requesting manifest $image:$tag")
             val newPath = s"/v2/${image.labelWithoutRegistry}/manifests/$tag"
             proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case s"/v2/$label/blobs/$blob" =>
             val image = Image.fromString(label, registries)
-            logger.info("blobs " + image + " " + blob)
+            logger.debug(s"requesting blob $image $blob")
             val newPath = s"/v2/${image.labelWithoutRegistry}/blobs/$blob"
             proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case path =>
-            println("unsupported path " + path)
+            logger.warn("unsupported path " + path)
             NotFound()
         }
     }
