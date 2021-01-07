@@ -1,4 +1,4 @@
-package de.lolhens.cadvisor.limiter
+package de.lolhens.docker.cache
 
 import cats.effect.{ExitCode, Resource}
 import cats.instances.list._

@@ -1,4 +1,4 @@
-package de.lolhens.cadvisor.limiter.internal.substitutes;
+package de.lolhens.docker.cache.internal.substitutes;
 
 import com.oracle.svm.core.annotate.Substitute;
 import com.oracle.svm.core.annotate.TargetClass;
