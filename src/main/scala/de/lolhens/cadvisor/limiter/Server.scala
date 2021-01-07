@@ -35,7 +35,7 @@ object Server extends TaskApp {
       val addr = s"localhost:$port"
       Files.createDirectories(directory)
       val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
-      builder.environment().put("HTTP_ADDR", addr)
+      builder.environment().put("REGISTRY_HTTP_ADDR", addr)
       builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString())
       builder.environment().put("REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY", directory.toAbsolutePath.toString)
       builder.environment().putAll(variables.asJava)
@@ -66,7 +66,9 @@ object Server extends TaskApp {
     )
   }
 
-  case class Image(registry: Registry, namespace: String, name: String)
+  case class Image(registry: Registry, namespace: String, name: String) {
+    lazy val string: String = s"$registry/$namespace/$name"
+  }
 
   object Image {
     def fromString(label: String, registries: Seq[Registry]): Image = {
@@ -165,12 +167,14 @@ object Server extends TaskApp {
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
             logger.info("manifest " + image + " " + tag)
-            proxyTo(request, proxyUriByRegistry(image.registry))
+            val newPath = s"/v2/${image.string}/manifests/$tag"
+            proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case s"/v2/$label/blobs/$blob" =>
             val image = Image.fromString(label, registries)
             logger.info("blobs " + image + " " + blob)
-            proxyTo(request, proxyUriByRegistry(image.registry))
+            val newPath = s"/v2/${image.string}/blobs/$blob"
+            proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case path =>
             println("unsupported path " + path)
