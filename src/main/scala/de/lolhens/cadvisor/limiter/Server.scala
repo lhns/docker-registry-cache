@@ -67,7 +67,7 @@ object Server extends TaskApp {
   }
 
   case class Image(registry: Registry, namespace: String, name: String) {
-    lazy val string: String = s"${registry.host}/$namespace/$name"
+    lazy val labelWithoutRegistry: String = s"$namespace/$name"
   }
 
   object Image {
@@ -167,13 +167,13 @@ object Server extends TaskApp {
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
             logger.info("manifest " + image + " " + tag)
-            val newPath = s"/v2/${image.string}/manifests/$tag"
+            val newPath = s"/v2/${image.labelWithoutRegistry}/manifests/$tag"
             proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case s"/v2/$label/blobs/$blob" =>
             val image = Image.fromString(label, registries)
             logger.info("blobs " + image + " " + blob)
-            val newPath = s"/v2/${image.string}/blobs/$blob"
+            val newPath = s"/v2/${image.labelWithoutRegistry}/blobs/$blob"
             proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case path =>
