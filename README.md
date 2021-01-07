@@ -13,6 +13,24 @@ Instead of `my/image:latest` you use `172.0.0.1:5000/my/image:latest`.
 This also works for `172.0.0.1:5000/ghcr.io/my/image:latest` and `172.0.0.1:5000/debian`.
 
 ## Stack Config
+### Filesystem Storage Backend
+```yml
+version: '3.7'
+
+services:
+  proxy:
+    image: ghcr.io/lolhens/docker-registry-cache
+    environment:
+      CONFIG: |
+        [
+          "registry-1.docker.io",
+          "ghcr.io",
+          "gcr.io"
+        ]
+    ports:
+      - "5000:5000"
+```
+
 ### MinIO Storage Backend
 ```yml
 version: '3.7'
@@ -56,24 +74,6 @@ services:
 networks:
   s3:
     driver: overlay
-```
-
-### Filesystem Storage Backend
-```yml
-version: '3.7'
-
-services:
-  proxy:
-    image: ghcr.io/lolhens/docker-registry-cache
-    environment:
-      CONFIG: |
-        [
-          "registry-1.docker.io",
-          "ghcr.io",
-          "gcr.io"
-        ]
-    ports:
-      - "5000:5000"
 ```
 
 ### Corporate Proxy
