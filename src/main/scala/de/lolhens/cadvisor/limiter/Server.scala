@@ -67,7 +67,7 @@ object Server extends TaskApp {
   }
 
   case class Image(registry: Registry, namespace: String, name: String) {
-    lazy val string: String = s"$registry/$namespace/$name"
+    lazy val string: String = s"${registry.host}/$namespace/$name"
   }
 
   object Image {
@@ -85,6 +85,9 @@ object Server extends TaskApp {
           (registry, namespace, name, tag)*/
         case (registry, namespace :+ label) =>
           (registry, namespace, label /*, "latest"*/ )
+
+        case (_, _) =>
+          throw new RuntimeException("image label cannot be empty")
       }.pipe {
         case (registry, namespace@_ +: _, name) => Image(registry, namespace.mkString("/"), name)
         case (registry, _, name) => Image(registry, "library", name)
