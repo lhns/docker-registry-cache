@@ -12,6 +12,15 @@ Instead of `my/image:latest` you just specify `127.0.0.1:5000/my/image:latest`.
 
 This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000/debian`.
 
+## Installation
+- Deploy the stack config as shown below
+- Add the following to your `/etc/docker/daemon.json`:
+```yml
+{
+  "insecure-registries" : ["127.0.0.1:5000"]
+}
+```
+
 ## Stack Config
 ### Filesystem Storage Backend
 ```yml
