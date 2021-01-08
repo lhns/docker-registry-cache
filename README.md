@@ -20,6 +20,7 @@ This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000
   "insecure-registries" : ["127.0.0.1:5000"]
 }
 ```
+- Restart the docker daemon
 
 ## Stack Config
 ### Filesystem Storage Backend
