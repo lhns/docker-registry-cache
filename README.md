@@ -103,5 +103,7 @@ You can also configure the internal registries individually using the `variables
 ## Docker builds
 https://github.com/users/LolHens/packages/container/package/docker-registry-cache
 
+https://hub.docker.com/r/lolhens/docker-registry-cache
+
 ## License
 This project uses the Apache 2.0 License. See the file called LICENSE.
