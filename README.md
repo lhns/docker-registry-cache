@@ -29,16 +29,22 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
     environment:
       CONFIG: |
         [
-          "registry-1.docker.io",
+          {"registry": "registry-1.docker.io", "variables": {"REGISTRY_PROXY_USERNAME": "my_dockerhub_id", "REGISTRY_PROXY_PASSWORD": "my_dockerhub_token"}},
           "ghcr.io",
           "gcr.io"
         ]
     ports:
       - "5000:5000"
+  zzz_proxy:
+    # This dummy service prevents the image from getting pruned
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    entrypoint: tail -f /dev/null
+    deploy:
+      mode: global
 ```
 
 ### MinIO Storage Backend
@@ -47,11 +53,11 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
     environment:
       CONFIG: |
         [
-          "registry-1.docker.io",
+          {"registry": "registry-1.docker.io", "variables": {"REGISTRY_PROXY_USERNAME": "my_dockerhub_id", "REGISTRY_PROXY_PASSWORD": "my_dockerhub_token"}},
           "ghcr.io",
           "gcr.io"
         ]
@@ -80,6 +86,18 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 15s
+  zzz_proxy:
+    # This dummy service prevents the image from getting pruned
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    entrypoint: tail -f /dev/null
+    deploy:
+      mode: global
+  zzz_s3:
+    # This dummy service prevents the image from getting pruned
+    image: minio/minio
+    entrypoint: tail -f /dev/null
+    deploy:
+      mode: global
 
 networks:
   s3:
