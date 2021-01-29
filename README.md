@@ -29,7 +29,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.3
     environment:
       CONFIG: |
         [
@@ -41,7 +41,7 @@ services:
       - "5000:5000"
   zzz_proxy:
     # This dummy service prevents the image from getting pruned
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.3
     entrypoint: tail -f /dev/null
     deploy:
       mode: global
@@ -53,7 +53,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.3
     environment:
       CONFIG: |
         [
@@ -62,7 +62,6 @@ services:
           "gcr.io"
         ]
       REGISTRY_STORAGE: 's3'
-      REGISTRY_STORAGE_REDIRECT_DISABLE: 'true'
       REGISTRY_STORAGE_S3_BUCKET: 'registry'
       REGISTRY_STORAGE_S3_REGION: 'minio'
       REGISTRY_STORAGE_S3_REGIONENDPOINT: 'http://s3:9000'
@@ -88,7 +87,7 @@ services:
       interval: 15s
   zzz_proxy:
     # This dummy service prevents the image from getting pruned
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.2
+    image: ghcr.io/lolhens/docker-registry-cache:0.1.3
     entrypoint: tail -f /dev/null
     deploy:
       mode: global
