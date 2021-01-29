@@ -38,6 +38,7 @@ object Server extends TaskApp {
       val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
       builder.environment().put("REGISTRY_HTTP_ADDR", addr)
       builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString())
+      builder.environment().put("REGISTRY_STORAGE_REDIRECT_DISABLE", "true")
 
       def appendDirectoryVar(variable: String, append: String, default: String = ""): String = {
         val newValue = (Option(System.getenv(variable)).getOrElse(default)
