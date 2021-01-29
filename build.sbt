@@ -3,7 +3,7 @@ version := "0.0.1-SNAPSHOT"
 
 scalaVersion := "2.13.4"
 
-val http4sVersion = "0.21.15"
+val http4sVersion = "0.21.16"
 
 libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "org.http4s" %% "http4s-blaze-server" % http4sVersion,
   "org.http4s" %% "http4s-circe" % http4sVersion,
   "de.lolhens" %% "http4s-monix" % "0.0.1",
-  "org.http4s" %% "http4s-jdk-http-client" % "0.3.3",
+  "org.http4s" %% "http4s-jdk-http-client" % "0.3.4",
 )
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
