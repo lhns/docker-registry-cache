@@ -38,6 +38,8 @@ services:
           "ghcr.io",
           "gcr.io"
         ]
+    volumes:
+      - /docker-registry-cache:/var/lib/registry
     ports:
       - "5000:5000"
   zzz_proxy:
@@ -68,8 +70,6 @@ services:
       REGISTRY_STORAGE_S3_REGIONENDPOINT: 'http://s3:9000'
       REGISTRY_STORAGE_S3_ACCESSKEY: 'minioadmin'
       REGISTRY_STORAGE_S3_SECRETKEY: 'minioadmin'
-    volumes:
-      - /docker-registry-cache:/var/lib/registry
     networks:
       - s3
     ports:
