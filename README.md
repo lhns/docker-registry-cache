@@ -20,7 +20,8 @@ This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000
   "insecure-registries" : ["127.0.0.1:5000"]
 }
 ```
-- Restart the docker daemon
+- Restart the docker daemon (or [reload](https://gist.github.com/LolHens/72fb1dfba4d0dada78ba7d9b69ed76de))
+- Change all image references that you want to cache from `my/image:latest` to `127.0.0.1:5000/my/image:latest`
 
 ## Stack Config
 ### Filesystem Storage Backend
@@ -67,6 +68,8 @@ services:
       REGISTRY_STORAGE_S3_REGIONENDPOINT: 'http://s3:9000'
       REGISTRY_STORAGE_S3_ACCESSKEY: 'minioadmin'
       REGISTRY_STORAGE_S3_SECRETKEY: 'minioadmin'
+    volumes:
+      - /docker-registry-cache:/var/lib/registry
     networks:
       - s3
     ports:
