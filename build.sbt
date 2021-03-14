@@ -3,7 +3,7 @@ version := "0.0.1-SNAPSHOT"
 
 scalaVersion := "2.13.4"
 
-val http4sVersion = "0.21.16"
+val http4sVersion = "0.21.20"
 
 libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
