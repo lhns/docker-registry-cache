@@ -6,7 +6,7 @@ scalaVersion := "2.13.5"
 val http4sVersion = "0.21.20"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.3",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "io.monix" %% "monix" % "3.3.0",
   "io.circe" %% "circe-core" % "0.13.0",
