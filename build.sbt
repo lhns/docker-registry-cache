@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "org.http4s" %% "http4s-blaze-server" % http4sVersion,
   "org.http4s" %% "http4s-circe" % http4sVersion,
   "de.lolhens" %% "http4s-monix" % "0.0.1",
-  "org.http4s" %% "http4s-jdk-http-client" % "0.3.5",
+  "org.http4s" %% "http4s-jdk-http-client" % "0.3.6",
 )
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
