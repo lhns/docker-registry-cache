@@ -1,7 +1,10 @@
 package de.lolhens.docker.cache
 
-import cats.effect.{ExitCode, Resource}
+import cats.Monad
+import cats.effect.{BracketThrow, ExitCode, Resource}
 import cats.instances.list._
+import cats.syntax.apply._
+import cats.syntax.functor._
 import cats.syntax.traverse._
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
@@ -167,7 +170,7 @@ object Server extends TaskApp {
   }
 
   lazy val clientResource: Resource[Task, Client[Task]] =
-    Resource.liftF(Task(JdkHttpClient[Task](
+    Resource.eval(Task(JdkHttpClient[Task](
       HttpClient.newBuilder()
         .sslParameters {
           val ssl = javax.net.ssl.SSLContext.getDefault
@@ -175,25 +178,36 @@ object Server extends TaskApp {
           params.setProtocols(Array("TLSv1.2"))
           params
         }
-        //.connectTimeout(java.time.Duration.ofMillis(timeout.toMillis))
         .build()
     )).memoizeOnSuccess)
 
-  def setDestination(request: Request[Task], destination: Uri): Request[Task] =
-    request.withUri(destination).putHeaders(Host.parse(destination.host.map(_.value).getOrElse("")).toTry.get)
-      .filterHeaders { header =>
-        val name = header.name.value.toLowerCase
-        !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
-      }
+  private def responseFromResource[F[_] : BracketThrow](resource: Resource[F, Response[F]]): F[Response[F]] =
+    resource.allocated.map {
+      case (response, release) =>
+        response.withBodyStream(Stream.resource(Resource.make(Monad[F].unit)(_ => release)) *> response.body)
+    }
+
+  def withDestination[F[_]](request: Request[F], destination: Uri): Request[F] =
+    request
+      .withUri(destination)
+      .putHeaders(Host.parse(destination.host.map(_.value).getOrElse("") + destination.port.map(":" + _).getOrElse("")).toTry.get)
 
   def proxyTo(request: Request[Task], destination: Uri): Task[Response[Task]] =
-    (for {
-      client <- clientResource
-      newRequest = setDestination(request, request.uri.copy(scheme = destination.scheme, authority = destination.authority))
-      response <- client.run(newRequest)
-    } yield
-      response)
-      .allocated.map(_._1)
+    responseFromResource {
+      for {
+        client <- clientResource
+        newRequest = withDestination(
+          request,
+          request.uri.copy(scheme = destination.scheme, authority = destination.authority)
+        )
+          .filterHeaders { header =>
+            val name = header.name.value.toLowerCase
+            !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
+          }
+        response <- client.run(newRequest)
+      } yield
+        response
+    }
 
   def service(registryProxies: Seq[(Registry, Uri)]): HttpRoutes[Task] = {
     val registries = registryProxies.map(_._1)

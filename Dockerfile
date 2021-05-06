@@ -1,7 +1,7 @@
-FROM lolhens/sbt-graal:21.0.0-java11 as builder
+FROM lolhens/sbt-graal:21.1.0-java11 as builder
 
 COPY . .
-ARG CI_VERSION=
+ARG CI_VERSION=""
 RUN sbt assembly
 RUN cp target/scala-*/docker-registry-cache*.sh.bat docker-registry-cache.sh.bat
 

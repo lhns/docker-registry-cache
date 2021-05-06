@@ -1,5 +1,9 @@
 name := "docker-registry-cache"
-version := "0.0.1-SNAPSHOT"
+version := {
+  val Tag = "refs/tags/(.*)".r
+  sys.env.get("CI_VERSION").collect { case Tag(tag) => tag }
+    .getOrElse("0.0.1-SNAPSHOT")
+}
 
 scalaVersion := "2.13.5"
 
@@ -23,18 +27,13 @@ addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
 
 Compile / doc / sources := Seq.empty
 
-version := {
-  val tagPrefix = "refs/tags/"
-  sys.env.get("CI_VERSION").filter(_.startsWith(tagPrefix)).map(_.drop(tagPrefix.length)).getOrElse(version.value)
-}
-
 assembly / assemblyJarName := s"${name.value}-${version.value}.sh.bat"
 
 assembly / assemblyOption := (assembly / assemblyOption).value
   .copy(prependShellScript = Some(AssemblyPlugin.defaultUniversalScript(shebang = false)))
 
 assembly / assemblyMergeStrategy := {
-  case PathList("module-info.class") =>
+  case PathList(paths@_*) if paths.last == "module-info.class" =>
     MergeStrategy.discard
 
   case PathList("META-INF", "jpms.args") =>
@@ -54,7 +53,6 @@ enablePlugins(
 
 GraalVMNativeImage / name := (GraalVMNativeImage / name).value + "-" + (GraalVMNativeImage / version).value
 graalVMNativeImageOptions ++= Seq(
-  //"--static",
   "--no-server",
   "--no-fallback",
   "--initialize-at-build-time",
