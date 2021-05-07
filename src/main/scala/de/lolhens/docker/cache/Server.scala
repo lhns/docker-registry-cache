@@ -1,12 +1,10 @@
 package de.lolhens.docker.cache
 
-import cats.Monad
-import cats.effect.{BracketThrow, ExitCode, Resource}
+import cats.effect.{ExitCode, Resource}
 import cats.instances.list._
-import cats.syntax.apply._
-import cats.syntax.functor._
 import cats.syntax.traverse._
 import com.typesafe.scalalogging.Logger
+import de.lolhens.http4s.proxy.Http4sProxy._
 import fs2.Stream
 import io.circe.generic.semiauto._
 import io.circe.syntax._
@@ -17,7 +15,6 @@ import org.http4s.circe._
 import org.http4s.client.Client
 import org.http4s.client.jdkhttpclient.JdkHttpClient
 import org.http4s.dsl.task.{Path => _, _}
-import org.http4s.headers.Host
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 
@@ -99,7 +96,7 @@ object Server extends TaskApp {
 
   object Image {
     def fromString(label: String, registries: Seq[Registry]): Image = {
-      label.split("/").toSeq.pipe {
+      label.split("/", -1).toSeq.pipe {
         case parts@registryName +: (remainingParts@_ +: _) =>
           registries.find(_.host.equalsIgnoreCase(registryName)) match {
             case Some(registry) => (registry, remainingParts)
@@ -181,33 +178,20 @@ object Server extends TaskApp {
         .build()
     )).memoizeOnSuccess)
 
-  private def responseFromResource[F[_] : BracketThrow](resource: Resource[F, Response[F]]): F[Response[F]] =
-    resource.allocated.map {
-      case (response, release) =>
-        response.withBodyStream(Stream.resource(Resource.make(Monad[F].unit)(_ => release)) *> response.body)
-    }
-
-  def withDestination[F[_]](request: Request[F], destination: Uri): Request[F] =
-    request
-      .withUri(destination)
-      .putHeaders(Host.parse(destination.host.map(_.value).getOrElse("") + destination.port.map(":" + _).getOrElse("")).toTry.get)
-
-  def proxyTo(request: Request[Task], destination: Uri): Task[Response[Task]] =
-    responseFromResource {
-      for {
-        client <- clientResource
-        newRequest = withDestination(
-          request,
-          request.uri.copy(scheme = destination.scheme, authority = destination.authority)
-        )
-          .filterHeaders { header =>
-            val name = header.name.value.toLowerCase
-            !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
-          }
-        response <- client.run(newRequest)
-      } yield
-        response
-    }
+  def proxyTo(request: Request[Task], destination: Uri): Task[Response[Task]] = Response.liftResource {
+    for {
+      client <- clientResource
+      newRequest = request.withDestination(
+        request.uri.copy(scheme = destination.scheme, authority = destination.authority)
+      )
+        .filterHeaders { header =>
+          val name = header.name.value.toLowerCase
+          !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
+        }
+      response <- client.run(newRequest)
+    } yield
+      response
+  }
 
   def service(registryProxies: Seq[(Registry, Uri)]): HttpRoutes[Task] = {
     val registries = registryProxies.map(_._1)
