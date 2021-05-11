@@ -13,7 +13,7 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.3",
   "de.lolhens" %% "http4s-monix" % "0.0.1",
-  "de.lolhens" %% "http4s-proxy" % "0.1.0",
+  "de.lolhens" %% "http4s-proxy" % "0.1.1",
   "io.circe" %% "circe-core" % "0.13.0",
   "io.circe" %% "circe-generic" % "0.13.0",
   "io.circe" %% "circe-parser" % "0.13.0",
