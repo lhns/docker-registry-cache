@@ -75,6 +75,9 @@ services:
       - s3
     ports:
       - "5000:5000"
+    deploy:
+      update_config:
+        order: start-first
   s3:
     image: minio/minio
     entrypoint: /bin/sh -c 'mkdir /data/registry & exec /usr/bin/docker-entrypoint.sh "$$@"' --
