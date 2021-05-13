@@ -207,13 +207,13 @@ object Server extends IOApp {
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
             logger.debug(s"requesting manifest $image:$tag")
-            val newPath = Uri.Path.unsafeFromString("/v2/${image.labelWithoutRegistry}/manifests/$tag")
+            val newPath = Uri.Path.unsafeFromString(s"/v2/${image.labelWithoutRegistry}/manifests/$tag")
             proxyTo(client, request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case s"/v2/$label/blobs/$blob" =>
             val image = Image.fromString(label, registries)
             logger.debug(s"requesting blob $image $blob")
-            val newPath = Uri.Path.unsafeFromString("/v2/${image.labelWithoutRegistry}/blobs/$blob")
+            val newPath = Uri.Path.unsafeFromString(s"/v2/${image.labelWithoutRegistry}/blobs/$blob")
             proxyTo(client, request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case path =>
