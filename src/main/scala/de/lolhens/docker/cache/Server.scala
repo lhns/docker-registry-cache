@@ -1,6 +1,6 @@
 package de.lolhens.docker.cache
 
-import cats.effect.{ExitCode, Resource}
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.instances.list._
 import cats.syntax.traverse._
 import com.typesafe.scalalogging.Logger
@@ -9,22 +9,20 @@ import fs2.Stream
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 import io.circe.{Codec, Decoder, Encoder, Json}
-import monix.eval.{Task, TaskApp}
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.Client
 import org.http4s.client.jdkhttpclient.JdkHttpClient
-import org.http4s.dsl.task.{Path => _, _}
+import org.http4s.dsl.io.{Path => _, _}
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 
-import java.net.http.HttpClient
 import java.nio.file.{Files, Path, Paths}
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
-object Server extends TaskApp {
+object Server extends IOApp {
   private val logger = Logger[Server.type]
 
   val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
@@ -32,7 +30,7 @@ object Server extends TaskApp {
   case class Registry private(uri: Uri) {
     lazy val host: String = uri.host.get.toString()
 
-    def startProxy(port: Int, variables: Map[String, String]): Task[Uri] = Task {
+    def startProxy(port: Int, variables: Map[String, String]): IO[Uri] = IO {
       val addr = s"localhost:$port"
 
       val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
@@ -128,87 +126,71 @@ object Server extends TaskApp {
     }
   }
 
-  override def run(args: List[String]): Task[ExitCode] = {
+  override def run(args: List[String]): IO[ExitCode] = {
     val registries: List[RegistryConfig] =
       io.circe.parser.parse(System.getenv("CONFIG")).toTry.get.as[List[RegistryConfig]].toTry.get
 
     logger.info("Registries:\n" + registries.map(_ + "\n").mkString)
     logger.info("starting proxies")
 
-    for {
-      registryProxies <- registries.zipWithIndex.map {
+    (for {
+      registryProxies <- Resource.eval(registries.zipWithIndex.map {
         case (registryConfig, index) =>
           registryConfig.registry.startProxy(5001 + index, registryConfig.variablesOrDefault)
             .map((registryConfig.registry, _))
-      }.sequence
-      _ <- clientResource.use { client =>
-        Task.parSequenceUnordered(registryProxies.map {
-          case (registry, proxyUri) =>
-            lazy val retryLoop: Task[String] =
-              client.expect[String](proxyUri.withPath("/v2/"))
-                .onErrorHandleWith { throwable =>
-                  Task.sleep(1.second) *>
-                    retryLoop
-                }
+      }.sequence)
+      client <- JdkHttpClient.simple[IO]
+      _ <- Resource.eval(IO.parSequenceN(registryProxies.size)(registryProxies.map {
+        case (registry, proxyUri) =>
+          lazy val retryLoop: IO[String] =
+            client.expect[String](proxyUri.withPath(path"/v2/"))
+              .handleErrorWith { throwable =>
+                IO.sleep(1.second) *>
+                  retryLoop
+              }
 
-            retryLoop.timeoutWith(20.seconds, new RuntimeException(s"error starting proxy for ${registry.host}"))
-        })
-      }
+          retryLoop.timeoutTo(20.seconds, IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}")))
+      }))
       _ = logger.info("proxies started")
-      result <- Task.deferAction { scheduler =>
-        BlazeServerBuilder[Task](scheduler)
+      ec <- Resource.eval(IO.executionContext)
+      result <-
+        BlazeServerBuilder[IO](ec)
           .bindHttp(5000, "0.0.0.0")
-          .withHttpApp(service(registryProxies).orNotFound)
+          .withHttpApp(service(client, registryProxies).orNotFound)
           .resource
-          .use(_ => Task.never)
-      }
     } yield
-      result
+      result)
+      .use(_ => IO.never)
   }
 
-  lazy val clientResource: Resource[Task, Client[Task]] =
-    Resource.eval(Task(JdkHttpClient[Task](
-      HttpClient.newBuilder()
-        .sslParameters {
-          val ssl = javax.net.ssl.SSLContext.getDefault
-          val params = ssl.getDefaultSSLParameters
-          params.setProtocols(Array("TLSv1.2"))
-          params
-        }
-        .build()
-    )).memoizeOnSuccess)
-
-  def proxyTo(request: Request[Task], destination: Uri): Task[Response[Task]] = Response.liftResource {
+  def proxyTo(client: Client[IO], request: Request[IO], destination: Uri): IO[Response[IO]] = Response.liftResource {
     for {
-      client <- clientResource
-      newRequest = request.withDestination(
-        request.uri.copy(scheme = destination.scheme, authority = destination.authority)
+      response <- client.run(
+        request.withDestination(request.uri.withSchemeAndAuthority(destination))
+          .filterHeaders { header =>
+            val name = header.name.toString.toLowerCase
+            !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
+          }
       )
-        .filterHeaders { header =>
-          val name = header.name.value.toLowerCase
-          !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
-        }
-      response <- client.run(newRequest)
     } yield
       response
   }
 
-  def service(registryProxies: Seq[(Registry, Uri)]): HttpRoutes[Task] = {
+  def service(client: Client[IO], registryProxies: Seq[(Registry, Uri)]): HttpRoutes[IO] = {
     val registries = registryProxies.map(_._1)
     val proxyUriByRegistry = registryProxies.toMap
 
     HttpRoutes.of {
       case request =>
-        request.uri.path match {
+        request.uri.path.renderString match {
           case "/v2/" =>
             Ok(Json.obj())
 
           case "/v2/_catalog" =>
             for {
               repositories <- (for {
-                client <- Stream.resource(clientResource)
                 (registry, proxyUri) <- Stream.iterable(registryProxies)
-                json <- Stream.eval(client.expect[Json](proxyUri.withPath("/v2/_catalog")))
+                json <- Stream.eval(client.expect[Json](proxyUri.withPath(path"/v2/_catalog")))
                 json <- Stream.iterable(json.asObject)
                 json <- Stream.iterable(json("repositories"))
                 json <- Stream.iterable(json.asArray)
@@ -225,14 +207,14 @@ object Server extends TaskApp {
           case s"/v2/$label/manifests/$tag" =>
             val image = Image.fromString(label, registries)
             logger.debug(s"requesting manifest $image:$tag")
-            val newPath = s"/v2/${image.labelWithoutRegistry}/manifests/$tag"
-            proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
+            val newPath = Uri.Path.unsafeFromString("/v2/${image.labelWithoutRegistry}/manifests/$tag")
+            proxyTo(client, request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case s"/v2/$label/blobs/$blob" =>
             val image = Image.fromString(label, registries)
             logger.debug(s"requesting blob $image $blob")
-            val newPath = s"/v2/${image.labelWithoutRegistry}/blobs/$blob"
-            proxyTo(request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
+            val newPath = Uri.Path.unsafeFromString("/v2/${image.labelWithoutRegistry}/blobs/$blob")
+            proxyTo(client, request.withUri(request.uri.withPath(newPath)), proxyUriByRegistry(image.registry))
 
           case path =>
             logger.warn("unsupported path " + path)
