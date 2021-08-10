@@ -10,12 +10,12 @@ import io.circe.generic.semiauto._
 import io.circe.syntax._
 import io.circe.{Codec, Decoder, Encoder, Json}
 import org.http4s._
+import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.circe._
 import org.http4s.client.Client
-import org.http4s.client.jdkhttpclient.JdkHttpClient
 import org.http4s.dsl.io.{Path => _, _}
 import org.http4s.implicits._
-import org.http4s.server.blaze.BlazeServerBuilder
+import org.http4s.jdkhttpclient.JdkHttpClient
 
 import java.nio.file.{Files, Path, Paths}
 import scala.concurrent.duration._
@@ -163,18 +163,14 @@ object Server extends IOApp {
       .use(_ => IO.never)
   }
 
-  def proxyTo(client: Client[IO], request: Request[IO], destination: Uri): IO[Response[IO]] = Response.liftResource {
-    for {
-      response <- client.run(
-        request.withDestination(request.uri.withSchemeAndAuthority(destination))
-          .filterHeaders { header =>
-            val name = header.name.toString.toLowerCase
-            !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
-          }
-      )
-    } yield
-      response
-  }
+  def proxyTo(client: Client[IO], request: Request[IO], destination: Uri): IO[Response[IO]] =
+    client.toHttpApp.run(
+      request.withDestination(request.uri.withSchemeAndAuthority(destination))
+        .filterHeaders { header =>
+          val name = header.name.toString.toLowerCase
+          !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
+        }
+    )
 
   def service(client: Client[IO], registryProxies: Seq[(Registry, Uri)]): HttpRoutes[IO] = {
     val registries = registryProxies.map(_._1)

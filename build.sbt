@@ -7,19 +7,19 @@ version := {
 
 scalaVersion := "2.13.6"
 
-val http4sVersion = "1.0.0-M21"
+val http4sVersion = "0.23.1"
 
 libraryDependencies ++= Seq(
-  "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.3",
-  "de.lolhens" %% "http4s-proxy" % "0.2.1",
+  "ch.qos.logback" % "logback-classic" % "1.2.5",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+  "de.lolhens" %% "http4s-proxy" % "0.3.0",
   "io.circe" %% "circe-core" % "0.14.1",
   "io.circe" %% "circe-generic" % "0.14.1",
   "io.circe" %% "circe-parser" % "0.14.1",
   "org.http4s" %% "http4s-blaze-server" % http4sVersion,
   "org.http4s" %% "http4s-circe" % http4sVersion,
   "org.http4s" %% "http4s-dsl" % http4sVersion,
-  "org.http4s" %% "http4s-jdk-http-client" % "0.5.0-M4",
+  "org.http4s" %% "http4s-jdk-http-client" % "0.5.0",
 )
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")

@@ -1,0 +1,22 @@
+name: build pr
+
+on:
+  pull_request:
+
+env:
+  IMAGE_NAME: docker-registry-cache
+
+jobs:
+  # Push image to GitHub Packages.
+  # See also https://docs.docker.com/docker-hub/builds/
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build image
+        run: docker build . --file Dockerfile --tag "$IMAGE_NAME" --label "runnumber=${GITHUB_RUN_ID}"

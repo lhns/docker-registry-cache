@@ -1,0 +1,56 @@
+name: build commit
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '*.*'
+
+env:
+  IMAGE_NAME: docker-registry-cache
+
+jobs:
+  # Push image to GitHub Packages.
+  # See also https://docs.docker.com/docker-hub/builds/
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build image
+        run: docker build . --file Dockerfile --tag "$IMAGE_NAME" --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push image to GitHub Container Registry
+        run: |
+          IMAGE_ID="ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME"
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_ID" | tr '[A-Z]' '[a-z]')
+          # Set version to commit hash
+          VERSION="${GITHUB_SHA::8}"
+          echo "$IMAGE_ID:$VERSION"
+          docker tag "$IMAGE_NAME" "$IMAGE_ID:$VERSION"
+          docker push "$IMAGE_ID:$VERSION"
+
+      - name: Log into Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Push image to Docker Hub
+        run: |
+          IMAGE_ID="${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME"
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_ID" | tr '[A-Z]' '[a-z]')
+          # Set version to commit hash
+          VERSION="${GITHUB_SHA::8}"
+          echo "$IMAGE_ID:$VERSION"
+          docker tag "$IMAGE_NAME" "$IMAGE_ID:$VERSION"
+          docker push "$IMAGE_ID:$VERSION"
