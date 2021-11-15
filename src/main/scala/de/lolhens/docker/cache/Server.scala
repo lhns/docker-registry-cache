@@ -165,7 +165,9 @@ object Server extends IOApp {
 
   def proxyTo(client: Client[IO], request: Request[IO], destination: Uri): IO[Response[IO]] =
     client.toHttpApp.run(
-      request.withDestination(request.uri.withSchemeAndAuthority(destination))
+      request
+        .withHttpVersion(HttpVersion.`HTTP/1.1`)
+        .withDestination(request.uri.withSchemeAndAuthority(destination))
         .filterHeaders { header =>
           val name = header.name.toString.toLowerCase
           !(name == "x-real-ip" || name.startsWith("x-forwarded-"))
