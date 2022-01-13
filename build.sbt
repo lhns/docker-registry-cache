@@ -5,7 +5,7 @@ version := {
     .getOrElse("0.0.1-SNAPSHOT")
 }
 
-scalaVersion := "2.13.7"
+scalaVersion := "2.13.8"
 
 val http4sVersion = "0.23.7"
 
