@@ -29,7 +29,7 @@ Compile / doc / sources := Seq.empty
 assembly / assemblyJarName := s"${name.value}-${version.value}.sh.bat"
 
 assembly / assemblyOption := (assembly / assemblyOption).value
-  .copy(prependShellScript = Some(AssemblyPlugin.defaultUniversalScript(shebang = false)))
+  .withPrependShellScript(Some(AssemblyPlugin.defaultUniversalScript(shebang = false)))
 
 assembly / assemblyMergeStrategy := {
   case PathList(paths@_*) if paths.last == "module-info.class" =>
