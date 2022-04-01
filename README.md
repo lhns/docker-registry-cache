@@ -31,7 +31,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.1.4
     environment:
       CONFIG: |
         [
@@ -57,7 +57,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lolhens/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.1.4
     environment:
       CONFIG: |
         [
@@ -125,7 +125,7 @@ The internally spawned registry processes will also inherit all environment vari
 You can also configure the internal registries individually using the `variables` section in the aforementioned JSON structure.
 
 ## Docker builds
-https://github.com/users/LolHens/packages/container/package/docker-registry-cache
+https://github.com/users/lhns/packages/container/package/docker-registry-cache
 
 https://hub.docker.com/r/lolhens/docker-registry-cache
 
