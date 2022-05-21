@@ -11,7 +11,7 @@ val http4sVersion = "0.23.11"
 
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.11",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
   "de.lolhens" %% "http4s-proxy" % "0.4.0",
   "io.circe" %% "circe-core" % "0.14.2",
   "io.circe" %% "circe-generic" % "0.14.2",
