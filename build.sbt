@@ -7,7 +7,7 @@ version := {
 
 scalaVersion := "2.13.8"
 
-val http4sVersion = "0.23.12"
+val http4sVersion = "0.23.13"
 
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.11",
