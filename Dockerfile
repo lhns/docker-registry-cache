@@ -1,4 +1,4 @@
-FROM lolhens/sbt-graal:22.1.0-java11 as builder
+FROM lolhens/sbt-graal:22.2.0-java11 as builder
 
 COPY . .
 ARG CI_VERSION=""
