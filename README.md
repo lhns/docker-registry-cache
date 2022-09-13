@@ -39,6 +39,7 @@ services:
           "ghcr.io",
           "gcr.io"
         ]
+      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
     volumes:
       - /docker-registry-cache:/var/lib/registry
     ports:
@@ -71,6 +72,7 @@ services:
       REGISTRY_STORAGE_S3_REGIONENDPOINT: 'http://s3:9000'
       REGISTRY_STORAGE_S3_ACCESSKEY: 'minioadmin'
       REGISTRY_STORAGE_S3_SECRETKEY: 'minioadmin'
+      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
     networks:
       - s3
     ports:
