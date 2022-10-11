@@ -1,0 +1,74 @@
+name: build
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '*.*'
+  release:
+    types:
+      - published
+
+env:
+  IMAGE_NAME: docker-registry-cache
+
+jobs:
+  # Push image to GitHub Packages.
+  # See also https://docs.docker.com/docker-hub/builds/
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-java@v3.5.1
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'sbt'
+
+      - name: SBT Build
+        env:
+          CI_VERSION: ${{ github.ref }}
+        run: sbt "; test; assembly"
+
+      - name: Docker Build
+        run: docker build -t "$IMAGE_NAME" --label "runnumber=${GITHUB_RUN_ID}" .
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ env.GITHUB_TOKEN }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push image to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ env.GITHUB_TOKEN }}
+        run: |
+          IMAGE_ID="ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME"
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_ID" | tr '[A-Z]' '[a-z]')
+
+          if [[ '${{ github.event_name }}' == 'release' ]]; then
+            # Set tags to `latest`
+            TAGS=(latest)
+            # Strip git ref prefix from version
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+            # Strip "v" prefix from tag name
+            [[ '${{ github.ref }}' =~ ^refs/tags/v[0-9]+\.[0-9] ]] && VERSION=$(echo "$VERSION" | sed -e 's/^v//')
+            # Add version to tags
+            [[ "$VERSION" != "main" ]] && TAGS+=("$VERSION")
+          else
+            # Set tags to commit hash
+            TAGS=("${GITHUB_SHA::8}")
+          fi
+
+          for TAG in "${TAGS[@]}"; do docker tag "$IMAGE_NAME" "$IMAGE_ID:$TAG"; done
+          for TAG in "${TAGS[@]}"; do docker push "$IMAGE_ID:$TAG"; done
