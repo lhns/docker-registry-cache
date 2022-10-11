@@ -5,18 +5,18 @@ import io.circe.{Codec, Decoder, Encoder}
 import org.http4s._
 import org.http4s.dsl.io.{Path => _}
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters._
 
 case class Registry private(uri: Uri) {
-  lazy val host: String = uri.host.get.toString()
+  lazy val host: String = uri.host.get.toString
 
   def startProxy(port: Int, variables: Map[String, String]): Resource[IO, Uri] = {
     val addr = s"localhost:$port"
     Resource.make(IO.blocking {
       val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
       builder.environment().put("REGISTRY_HTTP_ADDR", addr)
-      builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString())
+      builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString)
       builder.environment().put("REGISTRY_STORAGE_REDIRECT_DISABLE", "true")
 
       def appendDirectoryVar(variable: String, append: String, default: String = ""): String = {
@@ -36,7 +36,7 @@ case class Registry private(uri: Uri) {
           val directory = Paths.get(appendDirectoryVar(
             "REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY",
             host,
-            Main.defaultRootDirectory.toAbsolutePath.toString
+            Registry.defaultRootDirectory.toAbsolutePath.toString
           ))
           Files.createDirectories(directory)
       }
@@ -52,6 +52,8 @@ case class Registry private(uri: Uri) {
 }
 
 object Registry {
+  private val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
+
   def apply(uri: Uri): Registry = {
     require(uri.path.isEmpty, "registry uri path must be empty!")
     require(uri.host.isDefined, "registry uri host must not be empty!")

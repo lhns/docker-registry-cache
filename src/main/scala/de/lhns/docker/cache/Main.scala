@@ -1,6 +1,7 @@
 package de.lhns.docker.cache
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
+import cats.syntax.parallel._
 import com.comcast.ip4s._
 import org.http4s.HttpApp
 import org.http4s.dsl.io.{Path => _}
@@ -11,13 +12,10 @@ import org.http4s.server.Server
 import org.http4s.server.middleware.ErrorAction
 import org.log4s.getLogger
 
-import java.nio.file.{Path, Paths}
 import scala.concurrent.duration._
 
 object Main extends IOApp {
   private val logger = getLogger
-
-  val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
 
   override def run(args: List[String]): IO[ExitCode] =
     applicationResource(RegistryConfig.fromEnv).use(_ => IO.never)
@@ -27,16 +25,13 @@ object Main extends IOApp {
       client <- JdkHttpClient.simple[IO]
       _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_ + "\n").mkString)))
       _ <- Resource.eval(IO(logger.info("starting proxies")))
-      registryProxies <- fs2.Stream.emits(registries)
-        .covary[IO]
+      registryProxies <- registries
         .zipWithIndex
         .map { case (registryConfig, index) =>
-          fs2.Stream.resource {
-            registryConfig.registry.startProxy(
-              port = 5001 + index.toInt,
-              variables = registryConfig.variablesOrDefault
-            )
-          }
+          registryConfig.registry.startProxy(
+            port = 5001 + index,
+            variables = registryConfig.variablesOrDefault
+          )
             .map { proxyUri =>
               (registryConfig.registry, proxyUri)
             }
@@ -52,10 +47,7 @@ object Main extends IOApp {
                 retryLoop.timeoutTo(20.seconds, IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}")))
             }
         }
-        .parJoinUnbounded
-        .compile
-        .resource
-        .toVector
+        .parSequence
       _ <- Resource.eval(IO(logger.info("proxies started")))
       _ <- serverResource(
         host"0.0.0.0",
