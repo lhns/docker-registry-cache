@@ -6,7 +6,7 @@ import org.http4s.dsl.io.{Path => _}
 
 case class RegistryConfig(registry: Registry,
                           variables: Option[Map[String, String]]) {
-  def variablesOrDefault: Map[String, String] = variables.getOrElse(Map.empty)
+  val variablesOrDefault: Map[String, String] = variables.getOrElse(Map.empty)
 }
 
 object RegistryConfig {
