@@ -1,7 +1,6 @@
 package de.lhns.docker.cache
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
-import cats.syntax.traverse._
 import com.comcast.ip4s._
 import org.http4s.HttpApp
 import org.http4s.dsl.io.{Path => _}
@@ -20,35 +19,44 @@ object Main extends IOApp {
 
   val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
 
-  override def run(args: List[String]): IO[ExitCode] = {
-    val registries: Seq[RegistryConfig] = RegistryConfig.fromEnv
-
-    logger.info("Registries:\n" + registries.map(_ + "\n").mkString)
-    logger.info("starting proxies")
-
-    applicationResource(registries).use(_ => IO.never)
-  }
+  override def run(args: List[String]): IO[ExitCode] =
+    applicationResource(RegistryConfig.fromEnv).use(_ => IO.never)
 
   def applicationResource(registries: Seq[RegistryConfig]): Resource[IO, Unit] =
     for {
-      registryProxies <- Resource.eval(registries.zipWithIndex.map {
-        case (registryConfig, index) =>
-          registryConfig.registry.startProxy(5001 + index, registryConfig.variablesOrDefault)
-            .map((registryConfig.registry, _))
-      }.sequence)
       client <- JdkHttpClient.simple[IO]
-      _ <- Resource.eval(IO.parSequenceN(registryProxies.size)(registryProxies.map {
-        case (registry, proxyUri) =>
-          lazy val retryLoop: IO[String] =
-            client.expect[String](proxyUri.withPath(path"/v2/"))
-              .handleErrorWith { throwable =>
-                IO.sleep(1.second) *>
-                  retryLoop
-              }
+      _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_ + "\n").mkString)))
+      _ <- Resource.eval(IO(logger.info("starting proxies")))
+      registryProxies <- fs2.Stream.emits(registries)
+        .covary[IO]
+        .zipWithIndex
+        .map { case (registryConfig, index) =>
+          fs2.Stream.resource {
+            registryConfig.registry.startProxy(
+              port = 5001 + index.toInt,
+              variables = registryConfig.variablesOrDefault
+            )
+          }
+            .map { proxyUri =>
+              (registryConfig.registry, proxyUri)
+            }
+            .evalTap {
+              case (registry, proxyUri) =>
+                lazy val retryLoop: IO[String] =
+                  client.expect[String](proxyUri.withPath(path"/v2/"))
+                    .handleErrorWith { throwable =>
+                      IO.sleep(1.second) *>
+                        retryLoop
+                    }
 
-          retryLoop.timeoutTo(20.seconds, IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}")))
-      }))
-      _ = logger.info("proxies started")
+                retryLoop.timeoutTo(20.seconds, IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}")))
+            }
+        }
+        .parJoinUnbounded
+        .compile
+        .resource
+        .toVector
+      _ <- Resource.eval(IO(logger.info("proxies started")))
       _ <- serverResource(
         host"0.0.0.0",
         port"5000",
