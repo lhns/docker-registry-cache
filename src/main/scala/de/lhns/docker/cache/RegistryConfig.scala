@@ -21,6 +21,7 @@ object RegistryConfig {
   lazy val fromEnv: Seq[RegistryConfig] =
     Option(System.getenv("CONFIG"))
       .toRight(new IllegalArgumentException("Missing variable: CONFIG"))
-      .flatMap(io.circe.config.parser.decode[Seq[RegistryConfig]](_))
+      // https://github.com/circe/circe-config/issues/195
+      .flatMap(io.circe.parser.decode[Seq[RegistryConfig]](_))
       .toTry.get
 }
