@@ -53,5 +53,6 @@ lazy val root = (project in file("."))
       "org.http4s" %% "http4s-dsl" % V.http4s,
       "org.http4s" %% "http4s-ember-server" % V.http4s,
       "org.http4s" %% "http4s-jdk-http-client" % V.http4sJdkHttpClient,
+      "org.typelevel" %% "cats-effect" % V.catsEffect,
     )
   )
