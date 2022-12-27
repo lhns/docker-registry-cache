@@ -1,5 +1,6 @@
 package de.lhns.docker.cache
 
+import cats.effect.std.Env
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.syntax.parallel._
 import com.comcast.ip4s._
@@ -18,11 +19,12 @@ object Main extends IOApp {
   private val logger = getLogger
 
   override def run(args: List[String]): IO[ExitCode] =
-    applicationResource(RegistryConfig.fromEnv).use(_ => IO.never)
+    applicationResource.use(_ => IO.never)
 
-  def applicationResource(registries: Seq[RegistryConfig]): Resource[IO, Unit] =
+  def applicationResource: Resource[IO, Unit] =
     for {
-      client <- JdkHttpClient.simple[IO]
+      registries <- Resource.eval(RegistryConfig.fromEnv(Env.make[IO]))
+      client <- Resource.eval(JdkHttpClient.simple[IO])
       _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_ + "\n").mkString)))
       _ <- Resource.eval(IO(logger.info("starting proxies")))
       registryProxies <- registries
