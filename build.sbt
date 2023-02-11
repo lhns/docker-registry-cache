@@ -2,7 +2,7 @@ ThisBuild / scalaVersion := "2.13.10"
 
 val V = new {
   val betterMonadicFor = "0.3.1"
-  val catsEffect = "3.4.6"
+  val catsEffect = "3.4.5"
   val circe = "0.14.3"
   val circeConfig = "0.10.0"
   val http4s = "0.23.18"
