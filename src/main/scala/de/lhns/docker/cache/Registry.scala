@@ -8,12 +8,12 @@ import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters._
 
 trait Registry[F[_]] {
-  val uri: Uri
+  def uri: Uri
 
   require(uri.path.isEmpty, "registry uri path must be empty!")
   require(uri.host.isDefined, "registry uri host must not be empty!")
 
-  val host: String = uri.host.get.toString
+  lazy val host: String = uri.host.get.toString
 
   def setup(port: Int, variables: Map[String, String]): Resource[F, Uri]
 }
