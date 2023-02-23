@@ -41,14 +41,22 @@ object Main extends IOApp {
             }
             .evalTap {
               case (registry, proxyUri) =>
-                lazy val retryLoop: IO[String] =
-                  client.expect[String](proxyUri.withPath(path"/v2/"))
-                    .handleErrorWith { throwable =>
-                      IO.sleep(1.second) *>
-                        retryLoop
-                    }
+                Ref[IO].of[Option[Throwable]](None).flatMap { latestError =>
+                  lazy val retryLoop: IO[String] =
+                    client.expect[String](proxyUri.withPath(path"/v2/"))
+                      .handleErrorWith { error =>
+                        latestError.set(Some(error)) *>
+                          IO.sleep(1.second) *>
+                          retryLoop
+                      }
 
-                retryLoop.timeoutTo(20.seconds, IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}")))
+                  retryLoop.timeoutTo(
+                    20.seconds,
+                    latestError.get.flatMap { error =>
+                      IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
+                    }
+                  )
+                }
             }
         }
         .parSequence
