@@ -1,7 +1,7 @@
 package de.lhns.docker.cache
 
 import cats.effect.std.Env
-import cats.effect.{ExitCode, IO, IOApp, Resource}
+import cats.effect._
 import cats.syntax.parallel._
 import com.comcast.ip4s._
 import org.http4s.HttpApp
@@ -30,12 +30,13 @@ object Main extends IOApp {
       registryProxies <- registries
         .zipWithIndex
         .map { case (registryConfig, index) =>
-          registryConfig.registry.startProxy(
+          val registry = registryConfig.toRegistry
+          registry.setup(
             port = 5001 + index,
             variables = registryConfig.variablesOrDefault
           )
             .map { proxyUri =>
-              (registryConfig.registry, proxyUri)
+              (registry, proxyUri)
             }
             .evalTap {
               case (registry, proxyUri) =>
@@ -52,21 +53,22 @@ object Main extends IOApp {
         .parSequence
       _ <- Resource.eval(IO(logger.info("proxies started")))
       _ <- serverResource(
-        host"0.0.0.0",
-        port"5000",
+        SocketAddress(host"0.0.0.0", port"5000"),
         new RegistryProxyRoutes(client, registryProxies).toRoutes.orNotFound
       )
     } yield ()
 
-  def serverResource(host: Host, port: Port, http: HttpApp[IO]): Resource[IO, Server] =
+  def serverResource[F[_] : Async](socketAddress: SocketAddress[Host], http: HttpApp[F]): Resource[F, Server] =
     EmberServerBuilder
-      .default[IO]
-      .withHost(host)
-      .withPort(port)
-      .withHttpApp(ErrorAction.log(
-        http = http,
-        messageFailureLogAction = (t, msg) => IO(logger.debug(t)(msg)),
-        serviceErrorLogAction = (t, msg) => IO(logger.error(t)(msg))
-      ))
+      .default[F]
+      .withHost(socketAddress.host)
+      .withPort(socketAddress.port)
+      .withHttpApp(
+        ErrorAction.log(
+          http = http,
+          messageFailureLogAction = (t, msg) => Async[F].delay(logger.debug(t)(msg)),
+          serviceErrorLogAction = (t, msg) => Async[F].delay(logger.error(t)(msg))
+        ))
+      .withShutdownTimeout(1.second)
       .build
 }

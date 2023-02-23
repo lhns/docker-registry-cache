@@ -1,22 +1,41 @@
 package de.lhns.docker.cache
 
 import cats.data.OptionT
-import cats.effect.Sync
 import cats.effect.std.Env
+import cats.effect.{IO, Sync}
 import io.circe.generic.semiauto._
-import io.circe.{Codec, Decoder}
+import io.circe.{Codec, Decoder, Encoder}
+import org.http4s.Uri
 import org.http4s.dsl.io.{Path => _}
 
-case class RegistryConfig(registry: Registry,
-                          variables: Option[Map[String, String]]) {
+case class RegistryUri(uri: Uri)
+
+object RegistryUri {
+  implicit val codec: Codec[RegistryUri] = Codec.from(
+    Decoder[String].map(string => RegistryUri(Registry.registryUriFromString(string))),
+    Encoder[String].contramap[RegistryUri](_.uri.renderString)
+  )
+}
+
+case class RegistryConfig(registry: RegistryUri,
+                          variables: Option[Map[String, String]],
+                          externalUri: Option[RegistryUri]) {
   val variablesOrDefault: Map[String, String] = variables.getOrElse(Map.empty)
+
+  val toRegistry: Registry[IO] = externalUri match {
+    case Some(RegistryUri(proxyUri)) =>
+      Registry.externalProxy(registry.uri, proxyUri)
+
+    case None =>
+      Registry(registry.uri)
+  }
 }
 
 object RegistryConfig {
   implicit val codec: Codec[RegistryConfig] = {
     val defaultCodec = deriveCodec[RegistryConfig]
     Codec.from(
-      Decoder[Registry].map(RegistryConfig(_, None)).or(defaultCodec),
+      Decoder[RegistryUri].map(RegistryConfig(_, None, None)).or(defaultCodec),
       defaultCodec
     )
   }

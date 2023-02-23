@@ -14,7 +14,7 @@ import org.log4s.getLogger
 
 class RegistryProxyRoutes(
                            client: Client[IO],
-                           registryProxies: Seq[(Registry, Uri)]
+                           registryProxies: Seq[(Registry[IO], Uri)]
                          ) {
   private val logger = getLogger
 
