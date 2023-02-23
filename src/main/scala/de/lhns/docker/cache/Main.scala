@@ -1,9 +1,10 @@
 package de.lhns.docker.cache
 
-import cats.effect.std.Env
 import cats.effect._
+import cats.effect.std.Env
 import cats.syntax.parallel._
 import com.comcast.ip4s._
+import io.circe.syntax._
 import org.http4s.HttpApp
 import org.http4s.dsl.io.{Path => _}
 import org.http4s.ember.server.EmberServerBuilder
@@ -25,7 +26,7 @@ object Main extends IOApp {
     for {
       registries <- Resource.eval(RegistryConfig.fromEnv(Env.make[IO]))
       client <- Resource.eval(JdkHttpClient.simple[IO])
-      _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_ + "\n").mkString)))
+      _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_.asJson.noSpaces + "\n").mkString)))
       _ <- Resource.eval(IO(logger.info("starting proxies")))
       registryProxies <- registries
         .zipWithIndex

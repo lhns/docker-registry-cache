@@ -13,7 +13,7 @@ trait Registry[F[_]] {
   require(uri.path.isEmpty, "registry uri path must be empty!")
   require(uri.host.isDefined, "registry uri host must not be empty!")
 
-  lazy val host: String = uri.host.get.toString
+  val host: String = uri.host.get.toString
 
   def setup(port: Int, variables: Map[String, String]): Resource[F, Uri]
 }
@@ -24,7 +24,7 @@ object Registry {
   def externalProxy(uri: Uri, proxyUri: Uri): Registry[IO] = {
     val _uri = uri
     new Registry[IO] {
-      override val uri: Uri = _uri
+      override def uri: Uri = _uri
 
       override def setup(port: Int, variables: Map[String, String]): Resource[IO, Uri] =
         Resource.pure(proxyUri)
@@ -34,7 +34,7 @@ object Registry {
   def apply(uri: Uri): Registry[IO] = {
     val _uri = uri
     new Registry[IO] {
-      override val uri: Uri = _uri
+      override def uri: Uri = _uri
 
       override def setup(port: Int, variables: Map[String, String]): Resource[IO, Uri] = {
         val addr = s"localhost:$port"
