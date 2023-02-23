@@ -1,7 +1,6 @@
-ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / scalaVersion := "3.2.2"
 
 val V = new {
-  val betterMonadicFor = "0.3.1"
   val catsEffect = "3.4.8"
   val circe = "0.14.4"
   val circeConfig = "0.10.0"
@@ -19,7 +18,6 @@ lazy val commonSettings: Seq[Setting[_]] = Seq(
     sys.env.get("CI_VERSION").collect { case Tag(tag) => tag }
       .getOrElse("0.0.1-SNAPSHOT")
   },
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % V.betterMonadicFor),
   libraryDependencies ++= Seq(
     "ch.qos.logback" % "logback-classic" % V.logbackClassic % Test,
     "de.lolhens" %% "munit-tagless-final" % V.munitTaglessFinal % Test,
