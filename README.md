@@ -35,7 +35,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lhns/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.3.0
     environment:
       CONFIG: |
         [
@@ -50,7 +50,7 @@ services:
       - "5000:5000"
   zzz_proxy:
     # This dummy service prevents the image from getting pruned
-    image: ghcr.io/lhns/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.3.0
     entrypoint: tail -f /dev/null
     deploy:
       mode: global
@@ -62,7 +62,7 @@ version: '3.7'
 
 services:
   proxy:
-    image: ghcr.io/lhns/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.3.0
     environment:
       CONFIG: |
         [
@@ -100,7 +100,7 @@ services:
       interval: 15s
   zzz_proxy:
     # This dummy service prevents the image from getting pruned
-    image: ghcr.io/lhns/docker-registry-cache:0.1.4
+    image: ghcr.io/lhns/docker-registry-cache:0.3.0
     entrypoint: tail -f /dev/null
     deploy:
       mode: global
