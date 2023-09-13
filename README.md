@@ -17,6 +17,7 @@ Instead of `my/image:latest` you just specify `127.0.0.1:5000/my/image:latest`.
 This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000/debian`.
 
 ## Installation
+
 - Deploy the stack config as shown below
 - Add the following to your `/etc/docker/daemon.json`:
 ```yml
@@ -29,9 +30,11 @@ This also works for `127.0.0.1:5000/ghcr.io/my/image:latest` and `127.0.0.1:5000
 - Change all image references that you want to cache from `my/image:latest` to `127.0.0.1:5000/my/image:latest`
 
 ## Stack Config
+
 ### Filesystem Storage Backend
+
 ```yml
-version: '3.7'
+version: '3.8'
 
 services:
   proxy:
@@ -43,7 +46,7 @@ services:
           "ghcr.io",
           "gcr.io"
         ]
-      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+      #REGISTRY_STORAGE_DELETE_ENABLED: 'true' bug https://forums.docker.com/t/private-registry-not-working-after-deleting-an-image/105227
     volumes:
       - /docker-registry-cache:/var/lib/registry
     ports:
@@ -57,8 +60,9 @@ services:
 ```
 
 ### MinIO Storage Backend
+
 ```yml
-version: '3.7'
+version: '3.8'
 
 services:
   proxy:
@@ -76,7 +80,7 @@ services:
       REGISTRY_STORAGE_S3_REGIONENDPOINT: 'http://s3:9000'
       REGISTRY_STORAGE_S3_ACCESSKEY: 'minioadmin'
       REGISTRY_STORAGE_S3_SECRETKEY: 'minioadmin'
-      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+      #REGISTRY_STORAGE_DELETE_ENABLED: 'true' bug https://forums.docker.com/t/private-registry-not-working-after-deleting-an-image/105227
     networks:
       - s3
     ports:
@@ -116,7 +120,18 @@ networks:
     driver: overlay
 ```
 
+### Example Service
+
+```yml
+version: '3.8'
+
+services:
+  traefik:
+    image: 127.0.0.1:5000/traefik
+```
+
 ### Corporate Proxy
+
 ```yml
     environment:
       http_proxy: 'https://my-proxy:8080'
@@ -125,15 +140,18 @@ networks:
 ```
 
 ## Environment Variables
+
 **CONFIG** must contain a JSON list of either registry host strings or objects with the following structure `{"registry": "ghcr.io", "variables": {"TEST": "foo"}}`
 
 The internally spawned registry processes will also inherit all environment variables so you can configure all internal registries as described in the [official documentation](https://docs.docker.com/registry/configuration/).
 You can also configure the internal registries individually using the `variables` section in the aforementioned JSON structure.
 
 ## Docker builds
+
 https://github.com/users/lhns/packages/container/package/docker-registry-cache
 
 https://hub.docker.com/r/lolhens/docker-registry-cache
 
 ## License
+
 This project uses the Apache 2.0 License. See the file called LICENSE.
