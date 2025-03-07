@@ -6,6 +6,7 @@ on:
       - '**'
     tags-ignore:
       - '*.*'
+  pull_request:
   release:
     types:
       - published
@@ -18,34 +19,29 @@ jobs:
   # See also https://docs.docker.com/docker-hub/builds/
   build:
     runs-on: ubuntu-latest
-
     permissions:
       packages: write
       contents: read
-
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4.2.2
+      - uses: actions/setup-java@v4.7.0
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'sbt'
-
+          gpg-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
+      - uses: sbt/setup-sbt@v1
       - name: SBT Build
         env:
           CI_VERSION: ${{ github.ref }}
         run: sbt "; test; assembly"
-
       - name: Docker Build
         run: docker build -t "$IMAGE_NAME" --label "runnumber=${GITHUB_RUN_ID}" .
-
       - name: Log in to GitHub Container Registry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ env.GITHUB_TOKEN }}
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
       - name: Push image to GitHub Container Registry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,6 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: sbt/setup-sbt@v1
       - uses: scalacenter/sbt-dependency-submission@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
