@@ -7,7 +7,7 @@ val V = new {
   val http4s = "0.23.30"
   val http4sJdkHttpClient = "0.9.2"
   val http4sProxy = "0.4.1"
-  val logbackClassic = "1.5.17"
+  val logbackClassic = "1.5.18"
   val munit = "1.0.4"
   val munitTaglessFinal = "0.2.0"
 }
