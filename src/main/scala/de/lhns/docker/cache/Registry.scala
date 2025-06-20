@@ -39,7 +39,7 @@ object Registry {
       override def setup(port: Int, variables: Map[String, String]): Resource[IO, Uri] = {
         val addr = s"localhost:$port"
         Resource.make(IO.blocking {
-          val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
+          val builder = new ProcessBuilder("registry", "serve", "/etc/distribution/config.yml")
           builder.environment().put("REGISTRY_HTTP_ADDR", addr)
           builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString)
           builder.environment().put("REGISTRY_STORAGE_REDIRECT_DISABLE", "true")
