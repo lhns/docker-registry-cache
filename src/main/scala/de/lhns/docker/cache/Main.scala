@@ -25,7 +25,7 @@ object Main extends IOApp {
   def applicationResource: Resource[IO, Unit] =
     for {
       registries <- Resource.eval(RegistryConfig.fromEnv(Env.make[IO]))
-      client <- Resource.eval(JdkHttpClient.simple[IO])
+      client <- JdkHttpClient.simple[IO]
       _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_.asJson.noSpaces + "\n").mkString)))
       _ <- Resource.eval(IO(logger.info("starting proxies")))
       registryProxies <- registries
