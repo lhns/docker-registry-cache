@@ -1,15 +1,15 @@
 package de.lhns.docker.cache
 
 import cats.effect.IO
-import de.lolhens.http4s.proxy.Http4sProxy._
+import de.lolhens.http4s.proxy.Http4sProxy.*
 import fs2.Stream
 import io.circe.Json
-import io.circe.syntax._
-import org.http4s._
-import org.http4s.circe._
+import io.circe.syntax.*
+import org.http4s.*
+import org.http4s.circe.*
 import org.http4s.client.Client
-import org.http4s.dsl.io.{Path => _, _}
-import org.http4s.implicits._
+import org.http4s.dsl.io.{Path as _, *}
+import org.http4s.implicits.*
 import org.log4s.getLogger
 
 class RegistryProxyRoutes(

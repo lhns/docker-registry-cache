@@ -3,10 +3,10 @@ package de.lhns.docker.cache
 import cats.data.OptionT
 import cats.effect.std.Env
 import cats.effect.{IO, Sync}
-import io.circe.generic.semiauto._
+import io.circe.generic.semiauto.*
 import io.circe.{Codec, Decoder, Encoder}
 import org.http4s.Uri
-import org.http4s.dsl.io.{Path => _}
+import org.http4s.dsl.io.Path as _
 
 case class RegistryUri(uri: Uri)
 

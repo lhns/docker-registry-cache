@@ -1,9 +1,9 @@
 package de.lhns.docker.cache
 
 import cats.effect.IO
-import org.http4s.dsl.io.{Path => _}
+import org.http4s.dsl.io.Path as _
 
-import scala.util.chaining._
+import scala.util.chaining.*
 
 case class Image(registry: Registry[IO], namespace: String, name: String) {
   lazy val labelWithoutRegistry: String = s"$namespace/$name"

@@ -1,11 +1,11 @@
 package de.lhns.docker.cache
 
 import cats.effect.{IO, Resource}
-import org.http4s._
-import org.http4s.dsl.io.{Path => _}
+import org.http4s.*
+import org.http4s.dsl.io.Path as _
 
 import java.nio.file.{Files, Path, Paths}
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 trait Registry[F[_]] {
   def uri: Uri
@@ -39,8 +39,9 @@ object Registry {
       override def setup(port: Int, variables: Map[String, String]): Resource[IO, Uri] = {
         val addr = s"localhost:$port"
         Resource.make(IO.blocking {
-          val builder = new ProcessBuilder("registry", "serve", "/etc/docker/registry/config.yml")
+          val builder = new ProcessBuilder("registry", "serve", "/etc/distribution/config.yml")
           builder.environment().put("REGISTRY_HTTP_ADDR", addr)
+          builder.environment().put("REGISTRY_HTTP_DEBUG", "{}") // disable the debug port which would be on 5001 by default and cause conflicts
           builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString)
           builder.environment().put("REGISTRY_STORAGE_REDIRECT_DISABLE", "true")
 
