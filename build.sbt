@@ -1,14 +1,14 @@
-ThisBuild / scalaVersion := "3.3.5"
+ThisBuild / scalaVersion := "3.3.7"
 
 val V = new {
-  val catsEffect = "3.6.0"
-  val circe = "0.14.10"
+  val catsEffect = "3.6.3"
+  val circe = "0.14.15"
   val circeConfig = "0.10.0"
-  val http4s = "0.23.30"
-  val http4sJdkHttpClient = "0.9.2"
+  val http4s = "0.23.33"
+  val http4sJdkHttpClient = "0.10.0"
   val http4sProxy = "0.4.1"
-  val logbackClassic = "1.5.18"
-  val munit = "1.0.4"
+  val logbackClassic = "1.5.25"
+  val munit = "1.2.1"
   val munitTaglessFinal = "0.2.0"
 }
 

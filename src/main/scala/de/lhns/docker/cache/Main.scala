@@ -25,7 +25,7 @@ object Main extends IOApp {
   def applicationResource: Resource[IO, Unit] =
     for {
       registries <- Resource.eval(RegistryConfig.fromEnv(Env.make[IO]))
-      client <- Resource.eval(JdkHttpClient.simple[IO])
+      client <- JdkHttpClient.simple[IO]
       _ <- Resource.eval(IO(logger.info("Registries:\n" + registries.map(_.asJson.noSpaces + "\n").mkString)))
       _ <- Resource.eval(IO(logger.info("starting proxies")))
       registryProxies <- registries
@@ -33,9 +33,9 @@ object Main extends IOApp {
         .map { case (registryConfig, index) =>
           val registry = registryConfig.toRegistry
           registry.setup(
-            port = 5001 + index,
-            variables = registryConfig.variablesOrDefault
-          )
+              port = 5001 + index,
+              variables = registryConfig.variablesOrDefault
+            )
             .map { proxyUri =>
               (registry, proxyUri)
             }
@@ -50,12 +50,16 @@ object Main extends IOApp {
                           retryLoop
                       }
 
-                  retryLoop.timeoutTo(
-                    20.seconds,
-                    latestError.get.flatMap { error =>
-                      IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
-                    }
-                  )
+                  if (registryConfig.healthcheckOrDefault) {
+                    retryLoop.timeoutTo(
+                      20.seconds,
+                      latestError.get.flatMap { error =>
+                        IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
+                      }
+                    )
+                  } else {
+                    IO("")
+                  }
                 }
             }
         }
