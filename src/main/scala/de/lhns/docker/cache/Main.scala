@@ -33,9 +33,9 @@ object Main extends IOApp {
         .map { case (registryConfig, index) =>
           val registry = registryConfig.toRegistry
           registry.setup(
-            port = 5001 + index,
-            variables = registryConfig.variablesOrDefault
-          )
+              port = 5001 + index,
+              variables = registryConfig.variablesOrDefault
+            )
             .map { proxyUri =>
               (registry, proxyUri)
             }
@@ -50,12 +50,16 @@ object Main extends IOApp {
                           retryLoop
                       }
 
-                  retryLoop.timeoutTo(
-                    20.seconds,
-                    latestError.get.flatMap { error =>
-                      IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
-                    }
-                  )
+                  if (registryConfig.healthcheckOrDefault) {
+                    retryLoop.timeoutTo(
+                      20.seconds,
+                      latestError.get.flatMap { error =>
+                        IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
+                      }
+                    )
+                  } else {
+                    IO("")
+                  }
                 }
             }
         }

@@ -19,8 +19,11 @@ object RegistryUri {
 
 case class RegistryConfig(registry: RegistryUri,
                           variables: Option[Map[String, String]],
-                          externalUri: Option[RegistryUri]) {
+                          externalUri: Option[RegistryUri],
+                          healthcheck: Option[Boolean]) {
   val variablesOrDefault: Map[String, String] = variables.getOrElse(Map.empty)
+
+  val healthcheckOrDefault: Boolean = healthcheck.getOrElse(true)
 
   val toRegistry: Registry[IO] = externalUri match {
     case Some(RegistryUri(proxyUri)) =>
@@ -35,7 +38,7 @@ object RegistryConfig {
   implicit val codec: Codec[RegistryConfig] = {
     val defaultCodec = deriveCodec[RegistryConfig]
     Codec.from(
-      Decoder[RegistryUri].map(RegistryConfig(_, None, None)).or(defaultCodec),
+      Decoder[RegistryUri].map(RegistryConfig(_, None, None, None)).or(defaultCodec),
       defaultCodec
     )
   }
