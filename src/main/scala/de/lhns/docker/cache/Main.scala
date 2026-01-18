@@ -1,20 +1,22 @@
 package de.lhns.docker.cache
 
-import cats.effect._
+import cats.effect.*
 import cats.effect.std.Env
-import cats.syntax.parallel._
-import com.comcast.ip4s._
-import io.circe.syntax._
-import org.http4s.HttpApp
-import org.http4s.dsl.io.{Path => _}
+import cats.effect.syntax.all.*
+import cats.syntax.all.*
+import com.comcast.ip4s.*
+import io.circe.syntax.*
+import org.http4s.client.Client
+import org.http4s.dsl.io.Path as _
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits._
+import org.http4s.implicits.*
 import org.http4s.jdkhttpclient.JdkHttpClient
 import org.http4s.server.Server
 import org.http4s.server.middleware.ErrorAction
+import org.http4s.{HttpApp, Uri}
 import org.log4s.getLogger
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 object Main extends IOApp {
   private val logger = getLogger
@@ -41,25 +43,16 @@ object Main extends IOApp {
             }
             .evalTap {
               case (registry, proxyUri) =>
-                Ref[IO].of[Option[Throwable]](None).flatMap { latestError =>
-                  lazy val retryLoop: IO[String] =
-                    client.expect[String](proxyUri.withPath(path"/v2/"))
-                      .handleErrorWith { error =>
-                        latestError.set(Some(error)) *>
-                          IO.sleep(1.second) *>
-                          retryLoop
-                      }
-
-                  if (registryConfig.healthcheckOrDefault) {
-                    retryLoop.timeoutTo(
-                      20.seconds,
-                      latestError.get.flatMap { error =>
-                        IO.raiseError(new RuntimeException(s"error starting proxy for ${registry.host}", error.orNull))
-                      }
-                    )
-                  } else {
-                    IO("")
-                  }
+                if (registryConfig.healthcheckOrDefault) {
+                  awaitReady(
+                    client,
+                    registryUri = proxyUri,
+                    interval = 1.second,
+                    timeout = 20.seconds,
+                    s"error starting proxy for ${registry.host}"
+                  )
+                } else {
+                  IO.unit
                 }
             }
         }
@@ -70,6 +63,31 @@ object Main extends IOApp {
         new RegistryProxyRoutes(client, registryProxies).toRoutes.orNotFound
       )
     } yield ()
+
+  def awaitReady[F[_] : Async](
+                                client: Client[F],
+                                registryUri: Uri,
+                                interval: FiniteDuration,
+                                timeout: FiniteDuration,
+                                errorMessage: => String
+                              ): F[Unit] =
+    Ref[F].of[Option[Throwable]](None).flatMap { latestError =>
+      lazy val retryLoop: F[Unit] =
+        client.expect[String](registryUri.withPath(path"/v2/"))
+          .void
+          .handleErrorWith { error =>
+            latestError.set(Some(error)) *>
+              Async[F].sleep(interval) *>
+              retryLoop
+          }
+
+      retryLoop.timeoutTo(
+        timeout,
+        latestError.get.flatMap { error =>
+          Async[F].raiseError(new RuntimeException(errorMessage, error.orNull))
+        }
+      )
+    }
 
   def serverResource[F[_] : Async](socketAddress: SocketAddress[Host], http: HttpApp[F]): Resource[F, Server] =
     EmberServerBuilder

@@ -1,11 +1,11 @@
 package de.lhns.docker.cache
 
 import cats.effect.{IO, Resource}
-import org.http4s._
-import org.http4s.dsl.io.{Path => _}
+import org.http4s.*
+import org.http4s.dsl.io.Path as _
 
 import java.nio.file.{Files, Path, Paths}
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 trait Registry[F[_]] {
   def uri: Uri
