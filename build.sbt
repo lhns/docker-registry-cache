@@ -2,7 +2,7 @@ ThisBuild / scalaVersion := "3.3.8"
 
 val V = new {
   val catsEffect = "3.7.0"
-  val circe = "0.14.15"
+  val circe = "0.14.16"
   val circeConfig = "0.10.0"
   val http4s = "0.23.34"
   val http4sJdkHttpClient = "0.10.0"
