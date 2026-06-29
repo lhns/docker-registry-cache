@@ -12,6 +12,7 @@ import org.http4s.client.Client
 import org.http4s.dsl.io.{Path as _, *}
 import org.http4s.implicits.*
 import org.log4s.getLogger
+import org.typelevel.ci.CIString
 
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.*
@@ -55,11 +56,20 @@ class RegistryProxyRoutes(
   private val registries = registryProxies.map(_._1)
   private val proxyUriByRegistry = registryProxies.toMap
 
+  // The /v2/ and /v2/_catalog responses below are synthesized by the proxy rather than
+  // forwarded from an internal registry (which aggregates the catalog across registries),
+  // so they don't carry the registry's standard headers. Add them to match a real registry
+  // (Docker-Distribution-Api-Version is the header Docker clients look for on /v2/).
+  private val standardRegistryHeaders: Seq[Header.ToRaw] = Seq(
+    Header.Raw(CIString("Docker-Distribution-Api-Version"), "registry/2.0"),
+    Header.Raw(CIString("X-Content-Type-Options"), "nosniff")
+  )
+
   val toRoutes: HttpRoutes[IO] = HttpRoutes.of {
     case request =>
       request.uri.path.renderString match {
         case "/v2/" =>
-          Ok(Json.obj())
+          Ok(Json.obj()).map(_.putHeaders(standardRegistryHeaders*))
 
         case "/v2/_catalog" =>
           for {
@@ -77,7 +87,7 @@ class RegistryProxyRoutes(
             json = Map("repositories" -> repositories).asJson
             response <- Ok(json)
           } yield
-            response
+            response.putHeaders(standardRegistryHeaders*)
 
         case s"/v2/$label/manifests/$tag" =>
           val image = Image.fromString(label, registries)

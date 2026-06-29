@@ -3,9 +3,12 @@ package de.lhns.docker.cache
 import cats.effect.{IO, Resource}
 import org.http4s.*
 import org.http4s.dsl.io.Path as _
+import org.log4s.getLogger
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.jdk.CollectionConverters.*
+import scala.util.control.NonFatal
 
 trait Registry[F[_]] {
   def uri: Uri
@@ -19,7 +22,32 @@ trait Registry[F[_]] {
 }
 
 object Registry {
+  private val logger = getLogger
+
   private val defaultRootDirectory: Path = Paths.get("/var/lib/registry")
+
+  // The internal registry persists its proxy TTL scheduler state to
+  // "scheduler-state.json" at the storage root. If that file is corrupt (e.g.
+  // truncated by a crash or a stalled filesystem mid-write) the registry fails to
+  // start, taking the upstream's proxy down. Prioritising availability, we detect a
+  // corrupt file and delete it so the registry can rebuild its state from scratch.
+  // Best-effort and defensive: the directory or file may be absent, unreadable or
+  // locked, so any problem here is logged and ignored, never fatal, and we never
+  // delete a file we could not actually read and parse.
+  private def deleteCorruptSchedulerState(directory: Path): Unit =
+    try {
+      val stateFile = directory.resolve("scheduler-state.json")
+      if (Files.exists(stateFile) && Files.isRegularFile(stateFile)) {
+        val content = new String(Files.readAllBytes(stateFile), StandardCharsets.UTF_8)
+        if (io.circe.parser.parse(content).isLeft) {
+          logger.warn(s"scheduler-state.json at $stateFile is corrupt; deleting it so the registry can start")
+          Files.deleteIfExists(stateFile)
+        }
+      }
+    } catch {
+      case NonFatal(e) =>
+        logger.warn(e)(s"could not validate scheduler-state.json in $directory; leaving it untouched")
+    }
 
   def externalProxy(uri: Uri, proxyUri: Uri): Registry[IO] = {
     val _uri = uri
@@ -65,6 +93,7 @@ object Registry {
                 Registry.defaultRootDirectory.toAbsolutePath.toString
               ))
               Files.createDirectories(directory)
+              Registry.deleteCorruptSchedulerState(directory)
           }
 
           builder.environment().putAll(variables.asJava)
