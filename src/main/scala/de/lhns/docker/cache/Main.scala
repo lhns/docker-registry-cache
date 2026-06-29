@@ -21,6 +21,22 @@ import scala.concurrent.duration.*
 object Main extends IOApp {
   private val logger = getLogger
 
+  // Time-to-first-byte budget applied to ALL proxied requests. Once the upstream
+  // registry starts responding, body streaming is uncapped (important for large
+  // blobs over slow storage). This converts an indefinitely wedged storage read
+  // (e.g. a CephFS HDD stall) into a fast-failing 504 instead of an infinite hang.
+  val responseHeaderTimeout: FiniteDuration =
+    sys.env.get("PROXY_RESPONSE_HEADER_TIMEOUT").flatMap(parseDuration).getOrElse(30.seconds)
+
+  // Hard total-request cap applied to manifest requests only. Manifests are tiny
+  // and must return quickly; blobs are deliberately NOT subject to a total cap
+  // (see responseHeaderTimeout above).
+  val manifestRequestTimeout: FiniteDuration =
+    sys.env.get("PROXY_MANIFEST_REQUEST_TIMEOUT").flatMap(parseDuration).getOrElse(60.seconds)
+
+  private def parseDuration(string: String): Option[FiniteDuration] =
+    scala.util.Try(Duration(string.trim)).toOption.collect { case d: FiniteDuration => d }
+
   override def run(args: List[String]): IO[ExitCode] =
     applicationResource.use(_ => IO.never)
 
@@ -60,7 +76,12 @@ object Main extends IOApp {
       _ <- Resource.eval(IO(logger.info("proxies started")))
       _ <- serverResource(
         SocketAddress(host"0.0.0.0", port"5000"),
-        new RegistryProxyRoutes(client, registryProxies).toRoutes.orNotFound
+        new RegistryProxyRoutes(
+          client,
+          registryProxies,
+          responseHeaderTimeout = responseHeaderTimeout,
+          manifestRequestTimeout = manifestRequestTimeout
+        ).toRoutes.orNotFound
       )
     } yield ()
 

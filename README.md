@@ -146,6 +146,12 @@ services:
 The internally spawned registry processes will also inherit all environment variables so you can configure all internal registries as described in the [official documentation](https://docs.docker.com/registry/configuration/).
 You can also configure the internal registries individually using the `variables` section in the aforementioned JSON structure.
 
+**PROXY_RESPONSE_HEADER_TIMEOUT** (default `30s`) bounds how long the proxy waits for an upstream registry to *start* responding (time-to-first-byte) before failing the request with `504 Gateway Timeout`. Once a response begins, body streaming is uncapped so large blobs over slow storage are never interrupted. This prevents a wedged storage read (e.g. a stalled network filesystem) from hanging pulls indefinitely.
+
+**PROXY_MANIFEST_REQUEST_TIMEOUT** (default `60s`) is an additional hard total-request cap applied to manifest requests only (manifests are tiny and should return quickly). Blobs are intentionally not subject to a total cap.
+
+Both accept any Scala `Duration` string, e.g. `30s`, `500ms`, `2min`.
+
 ## Docker builds
 
 https://github.com/users/lhns/packages/container/package/docker-registry-cache
