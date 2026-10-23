@@ -152,6 +152,8 @@ You can also configure the internal registries individually using the `variables
 
 Both accept any Scala `Duration` string, e.g. `30s`, `500ms`, `2min`.
 
+**REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR** defaults to `none` (the upstream registry default is `inmemory`). When the proxy TTL (`REGISTRY_PROXY_TTL`, default `168h`) expires a blob for one repository, the registry deletes the blob data even if other repositories still reference it ([distribution/distribution#4872](https://github.com/distribution/distribution/pull/4872)). With the `inmemory` descriptor cache those repositories keep serving the deleted blob as `200` with an empty body, so pulls fail with `unexpected EOF` until the registry is restarted. Without the cache the registry notices the missing blob and fetches it from upstream again. Set it to `inmemory` to restore the previous behaviour.
+
 ## Docker builds
 
 https://github.com/users/lhns/packages/container/package/docker-registry-cache

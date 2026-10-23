@@ -72,6 +72,15 @@ object Registry {
           builder.environment().put("REGISTRY_HTTP_DEBUG", "{}") // disable the debug port which would be on 5001 by default and cause conflicts
           builder.environment().put("REGISTRY_PROXY_REMOTEURL", uri.toString)
           builder.environment().put("REGISTRY_STORAGE_REDIRECT_DISABLE", "true")
+          // The proxy TTL scheduler expires blobs per repository@digest, but deletes the shared blob data,
+          // even if other repositories still link to it. With the default "inmemory" blob descriptor
+          // cache those repositories keep a cached descriptor for the deleted blob and answer every
+          // pull with 200 and an empty body until the registry is restarted (docker: "unexpected EOF").
+          // Without the cache the registry stats the storage, notices the missing blob and fetches it
+          // from upstream again. https://github.com/distribution/distribution/pull/4872
+          // Can still be overridden via environment or per-registry variables.
+          if (System.getenv("REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR") == null)
+            builder.environment().put("REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR", "none")
 
           def appendDirectoryVar(variable: String, append: String, default: String = ""): String = {
             val newValue = (Option(System.getenv(variable)).getOrElse(default)
