@@ -30,7 +30,7 @@ jobs:
           java-version: '17'
           cache: 'sbt'
           gpg-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
-      - uses: sbt/setup-sbt@v1.5.5
+      - uses: sbt/setup-sbt@v1.5.12
       - name: SBT Build
         env:
           CI_VERSION: ${{ github.ref }}
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: sbt/setup-sbt@v1.5.5
+      - uses: sbt/setup-sbt@v1.5.12
       - uses: scalacenter/sbt-dependency-submission@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
